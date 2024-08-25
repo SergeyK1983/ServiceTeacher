@@ -1,0 +1,33 @@
+version: '3.9'
+
+x-default-system-settings: &default-settings
+  networks:
+    - teacher_network
+  restart: on-failure
+
+services:
+  pgdb:
+    <<: *default-settings
+    container_name: pgdb_service
+    image: postgres:15.4-alpine
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      - ./.env
+#      - POSTGRES_PASSWORD=postgres
+#      - POSTGRES_USER=postgres
+#      - POSTGRES_DB=pgdb
+    volumes:
+      - pgdb:/var/lib/postgresql/data
+    ports:
+      - "15432:5432"
+
+volumes:
+  pgdb:
+    name: teacher_service_data
+
+networks:
+  teacher_network:
+    name: teacher_network
+    driver: bridge
