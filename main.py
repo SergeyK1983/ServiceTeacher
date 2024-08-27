@@ -1,6 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
 
+from app_service.crud import create_proba
 from app_service.models.database import Base, engine, SessionLocal
+from app_service.schemas import ProbaCreate
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,3 +22,9 @@ def get_db():
     finally:
         db.close()
 
+
+@app.post("/proba/")
+def post_proba(proba: ProbaCreate, db: Session = Depends(get_db)):
+    db_proba = create_proba(db, proba)
+
+    return db_proba
