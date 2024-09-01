@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from .models.models import ProbaTable
+from .models import ProbaTable
 from .schemas import ProbaCreate
 
 

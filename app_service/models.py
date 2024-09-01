@@ -1,7 +1,7 @@
 from sqlalchemy import BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app_service.models.database import Base
+from core.database import Base
 
 
 class ProbaTable(Base):

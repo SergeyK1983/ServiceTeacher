@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, Depends
 from sqlalchemy.orm import Session
 
 from .crud import create_proba, get_probas
-from .models.database import get_db
+from core.database import get_db
 from .schemas import ProbaCreate, ProbaGetAll
 
 router = APIRouter(tags=["prob"])

@@ -1,7 +1,4 @@
-from typing import List
-from pydantic import BaseModel, Field
-
-from .models.models import ProbaTable
+from pydantic import BaseModel
 
 
 class Proba(BaseModel):
