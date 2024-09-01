@@ -24,9 +24,10 @@ class ProbaCreate(Proba):
         }
 
 
-# class ProbaGet(Proba):
-#     proba: List[ProbaTable]
-#
-#     class Config:
-#         orm_mode = True
+class ProbaGetAll(Proba):
+    id: int
+    name: str
+
+    class Config:
+        orm_mode = True
 

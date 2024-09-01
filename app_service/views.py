@@ -1,15 +1,14 @@
 from fastapi import APIRouter, status, Depends
 from sqlalchemy.orm import Session
 
-from .crud import create_proba
+from .crud import create_proba, get_probas
 from .models.database import get_db
-from .schemas import ProbaCreate
+from .schemas import ProbaCreate, ProbaGetAll
 
-
-router = APIRouter()
+router = APIRouter(tags=["prob"])
 
 swagger_post_proba = {
-    "tags": ["prob"],
+    # "tags": ["prob"],
     "summary": "Create a proba",
     "response_description": "The created proba",
     # "deprecated": True  # Пометка, что операция пути устаревшая
@@ -26,4 +25,9 @@ def post_proba(proba: ProbaCreate, db: Session = Depends(get_db)):
     return db_proba
 
 
-
+@router.get("/proba/all", status_code=status.HTTP_200_OK, response_model=list[ProbaGetAll])
+def get_proba(db: Session = Depends(get_db)):
+    """
+    Displaying instances proba
+    """
+    return get_probas(db)
