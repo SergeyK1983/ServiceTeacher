@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from app_service.models import ProbaTable
+from app_account.models import User
 from core.config import DB_HOST, DB_PASS, DB_NAME, DB_USER, DB_PORT
 from core.database import Base
 
