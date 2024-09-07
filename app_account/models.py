@@ -12,5 +12,6 @@ class User(Base):
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), unique=True, primary_key=True, default=uuid.uuid4)
     username: Mapped[str] = mapped_column(String(100), nullable=False, comment="Имя пользователя")
     password: Mapped[str] = mapped_column(String(100), nullable=False)
+    # email: Mapped[str] = mapped_column(String(100), nullable=False)
 
 
