@@ -11,6 +11,7 @@ alembic = "*"
 psycopg2-binary = "*"
 python-dotenv = "*"
 black = "*"
+email-validator = "*"
 
 [dev-packages]
 
