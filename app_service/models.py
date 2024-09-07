@@ -12,3 +12,4 @@ class ProbaTable(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(150), nullable=True)
+    description: Mapped[str] = mapped_column(String(300), nullable=True)
