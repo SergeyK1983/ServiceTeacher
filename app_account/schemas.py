@@ -18,6 +18,6 @@ class FullUser(User):
         from_attributes = True
 
 
-class UserCreate(User):
+class UserRegister(User):
     password: constr(min_length=3, max_length=8)
 
