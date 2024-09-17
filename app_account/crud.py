@@ -10,6 +10,10 @@ class UserCrud:
     def register_user(db: Session, user: UserRegister) -> User:
         """
         Регистрация (создание) пользователя
+        Args:
+            db:
+            user:
+        Returns:
         """
         instance = User(**user.dict())
         db.add(instance)

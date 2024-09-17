@@ -13,8 +13,9 @@ class Authentication:
     def get_password_hash(cls, password: str) -> str:
         """
         Хеширование пароля пользователя
-        :param password: user password
-        :return: hashed password
+        Args:
+            password: user password
+        Returns: hashed password
         """
         return cls.pwd_context.hash(password)
 
@@ -22,9 +23,10 @@ class Authentication:
     def verify_password(cls, input_password: str, hashed_password: str) -> bool:
         """
         Проверка пароля при вводе пароля пользователем
-        :param input_password: input
-        :param hashed_password: hash in database
-        :return: True if good
+        Args:
+            input_password: input password
+            hashed_password: hash in database
+        Returns: True if good
         """
         return cls.pwd_context.verify(input_password, hashed_password)
 

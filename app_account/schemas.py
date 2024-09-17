@@ -15,7 +15,7 @@ class FullUser(User):
     updated: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 class UserRegister(User):
