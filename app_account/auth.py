@@ -32,6 +32,12 @@ class Authentication:
 
     @classmethod
     def create_access_token(cls, data: dict) -> str:
+        """
+        Создание JWT токена.
+        Args:
+            data:
+        Returns: jwt token
+        """
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode.update({"exp": expire})

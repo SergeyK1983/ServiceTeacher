@@ -11,9 +11,9 @@ class UserCrud:
         """
         Регистрация (создание) пользователя
         Args:
-            db:
-            user:
-        Returns:
+            db: session
+            user: schema UserRegister
+        Returns: instance User
         """
         instance = User(**user.dict())
         db.add(instance)
