@@ -7,7 +7,7 @@ from alembic import context
 
 from app_service.models import *
 from app_account.models import *
-from core.config import DB_HOST, DB_PASS, DB_NAME, DB_USER, DB_PORT
+from core.config import settings
 from core.database import Base
 
 
@@ -16,11 +16,11 @@ from core.database import Base
 config = context.config
 
 section = config.config_ini_section
-config.set_section_option(section, "DB_HOST", DB_HOST)
-config.set_section_option(section, "DB_PASS", DB_PASS)
-config.set_section_option(section, "DB_NAME", DB_NAME)
-config.set_section_option(section, "DB_USER", DB_USER)
-config.set_section_option(section, "DB_PORT", DB_PORT)
+config.set_section_option(section, "DB_HOST", settings.DB_HOST)
+config.set_section_option(section, "DB_PASS", settings.DB_PASS)
+config.set_section_option(section, "DB_NAME", settings.DB_NAME)
+config.set_section_option(section, "DB_USER", settings.DB_USER)
+config.set_section_option(section, "DB_PORT", settings.DB_PORT)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

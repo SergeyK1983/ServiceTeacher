@@ -1,20 +1,35 @@
-import os
 from pathlib import Path
-from dotenv import load_dotenv
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(dotenv_path=os.path.join(BASE_DIR, '.env'))
 
-# database
-DB_NAME = os.getenv('DB_NAME', )
-DB_USER = os.getenv('DB_USER', )
-DB_PASS = os.getenv('DB_PASS', )
-DB_HOST = os.getenv('DB_HOST', )
-DB_PORT = os.getenv('DB_PORT', )
 
-# auth
-SECRET_KEY = os.getenv('SECRET_KEY', )
-ALGORITHM = os.getenv('ALGORITHM', )
-ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', 30)
+class Settings(BaseSettings, case_sensitive=True):
+    # case_sensitive=True все имена переменных теперь чувствительны к регистру
+
+    # database
+    DB_NAME: str = Field(alias="DB_NAME")
+    DB_USER: str = Field(alias="DB_USER")
+    DB_PASS: str = Field(alias="DB_PASS")
+    DB_HOST: str = Field(alias="DB_HOST")
+    DB_PORT: int = Field(alias="DB_PORT")
+
+    # auth
+    SECRET_KEY: str = Field(alias="SECRET_KEY")
+    ALGORITHM: str = Field(alias="ALGORITHM")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
+
+    # class Config:
+    #     secrets_dir = BASE_DIR / "secrets"  # директория, где хранится файл с паролем.
+
+    @property
+    def postgresql_url(self) -> str:
+        return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+
+settings = Settings()
 

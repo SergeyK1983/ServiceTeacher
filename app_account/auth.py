@@ -2,7 +2,7 @@ import jwt
 from datetime import datetime, timezone, timedelta
 from passlib.context import CryptContext
 
-from core.config import ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY, ALGORITHM
+from core.config import settings
 
 
 class Authentication:
@@ -39,8 +39,8 @@ class Authentication:
         Returns: jwt token
         """
         to_encode = data.copy()
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode.update({"exp": expire})
-        encode_jwt = jwt.encode(to_encode, SECRET_KEY, ALGORITHM)
+        encode_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
         return encode_jwt
 

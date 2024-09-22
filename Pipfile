@@ -14,6 +14,7 @@ black = "*"
 email-validator = "*"
 passlib = {extras = ["bcrypt"], version = "*"}
 pyjwt = "*"
+pydantic-settings = "*"
 
 [dev-packages]
 
