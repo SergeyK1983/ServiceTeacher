@@ -21,3 +21,8 @@ class FullUser(User):
 class UserRegister(User):
     password: str = Field(min_length=3, max_length=8, description="Пароль")
 
+
+class AuthUser(BaseModel):
+    username: str = Field(description="Имя пользователя")
+    password: str = Field(description="Пароль")
+

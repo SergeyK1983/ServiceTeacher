@@ -6,7 +6,7 @@ from core.config import settings
 
 DATABASE_URL = settings.postgresql_url
 
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=True)  # echo=True для отладки
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
