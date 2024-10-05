@@ -18,7 +18,15 @@ class UserExceptions(AccountBaseException):
             user: instance User
         """
         if user:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Пользователь уже существует"
-            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Пользователь уже существует")
+
+    @classmethod
+    def exc_user_unauthorized(cls, user: User | None):
+        """
+        Поднимает исключение, если не передан экземпляр пользователя.\n
+        raise HTTPException, status.HTTP_401_UNAUTHORIZED
+        Args:
+            user: instance User or None
+        """
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверное имя пользователя или пароль')

@@ -6,7 +6,7 @@ from .auth import Authentication
 from .common import UserCommon
 from .crud import UserCrud
 from .excepions import UserExceptions
-from .schemas import UserRegister, User
+from .schemas import UserRegister, User, AuthUser
 from .swagger_schema import AccountSWSchema
 
 router = APIRouter(tags=["account"])
@@ -30,8 +30,12 @@ def register_user(user: UserRegister, db: Session = Depends(get_db)) -> dict:
 
 
 @router.post("/login")
-def login_user():
-    pass
+def login_user(response: Response, user: AuthUser):
+    check = UserCommon.authenticate_user(username=user.username, password=user.password)
+    UserExceptions.exc_user_unauthorized(check)
+    access_token = Authentication.create_access_token({"sub": str(check.id)})
+    response.set_cookie(key="users_access_token", value=access_token, httponly=True)
+    return {'access_token': access_token, 'refresh_token': None}
 
 
 @router.post("/logout")
