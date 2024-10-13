@@ -1,9 +1,13 @@
+from uuid import UUID
+
 from sqlalchemy import select
+from sqlalchemy.orm import Session, sessionmaker
 from typing import Optional
 
-from app_account.models import User
 from core.database import SessionLocal
+from .models import User
 from .auth import Authentication
+from .schemas import AllUsers, FullUser
 
 
 def get_session():
@@ -54,4 +58,36 @@ class UserCommon:
             instance: Optional[User] = resp.scalar_one_or_none()
 
         return instance
+
+
+class UserCommonBase:
+
+    def __init__(self, db: Session):
+        self.session: Session = db
+
+    def show_all_users(self):
+        session = get_session()
+        query_ = select(User)
+        with session as ses:
+            resp = ses.execute(query_)
+            result = resp.scalars().all()
+            users = [FullUser.model_validate(row, from_attributes=True) for row in result]
+
+        # users = self.session.query(select(User.username, User.email))
+        # print(f"{users = }")
+        return users
+
+    def show_full_user(self, user_id: UUID):
+        # session = get_session()
+        # query_ = select(User).where(User.id == user_id)
+        # with session as ses:
+        #     resp = ses.execute(query_)
+        #     result = resp.scalars().all()
+        #     user = FullUser.model_validate(result[0], from_attributes=True)
+
+        resp = self.session.execute(select(User).where(User.id == user_id))
+        result = resp.scalars().all()
+        print(f"{result = }")
+        user = FullUser.model_validate(result[0])
+        return user
 
