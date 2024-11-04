@@ -30,3 +30,9 @@ class UserExceptions(AccountBaseException):
         """
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверное имя пользователя или пароль')
+
+
+class AuthExceptions(AccountBaseException):
+    @classmethod
+    def exc_jwt_decode_error(cls):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Ошибка аутентификации')

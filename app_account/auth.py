@@ -1,7 +1,9 @@
 import jwt
+from typing import Optional
 from datetime import datetime, timezone, timedelta
 from passlib.context import CryptContext
 
+from app_account.excepions import AuthExceptions
 from core.config import settings
 
 
@@ -43,4 +45,14 @@ class Authentication:
         to_encode.update({"exp": expire})
         encode_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
         return encode_jwt
+
+    @classmethod
+    def verify_access_token(cls, token: str) -> Optional[dict]:
+        payload = dict()
+        try:
+            payload: dict = jwt.decode(jwt=token, key=settings.SECRET_KEY, algorithms=settings.ALGORITHM)
+        except (jwt.ExpiredSignatureError, jwt.DecodeError):
+            AuthExceptions.exc_jwt_decode_error()
+
+        return payload
 

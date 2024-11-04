@@ -7,7 +7,7 @@ from typing import Optional
 from core.database import SessionLocal
 from .models import User
 from .auth import Authentication
-from .schemas import AllUsers, FullUser
+from .schemas import AllUsers, FullUser, UserId
 
 
 def get_session():
@@ -45,11 +45,11 @@ class UserCommon:
         return user
 
     @staticmethod
-    def _session_to_receive_user(query_: select) -> Optional[User]:
+    def _session_to_receive_user(query_) -> Optional[User]:
         """
         Возвращает экземпляр пользователя либо None.
         Args:
-            query_:
+            query_: select from sqlalchemy
         Returns: instance User model
         """
         session = get_session()
@@ -72,22 +72,17 @@ class UserCommonBase:
             resp = ses.execute(query_)
             result = resp.scalars().all()
             users = [FullUser.model_validate(row, from_attributes=True) for row in result]
-
-        # users = self.session.query(select(User.username, User.email))
-        # print(f"{users = }")
         return users
 
     def show_full_user(self, user_id: UUID):
-        # session = get_session()
-        # query_ = select(User).where(User.id == user_id)
-        # with session as ses:
-        #     resp = ses.execute(query_)
-        #     result = resp.scalars().all()
-        #     user = FullUser.model_validate(result[0], from_attributes=True)
-
         resp = self.session.execute(select(User).where(User.id == user_id))
         result = resp.scalars().all()
-        print(f"{result = }")
         user = FullUser.model_validate(result[0])
+        return user
+
+    def get_user_an_id(self, user_id: UUID):
+        resp = self.session.execute(select(User).where(User.id == user_id))
+        result = resp.first()
+        user = UserId.model_validate(result[0], from_attributes=True)
         return user
 
