@@ -12,6 +12,9 @@ class User(BaseModel):
 class UserId(User):
     id: UUID = Field(default=..., description="Идентификатор")
 
+    class Config:
+        from_attributes = True
+
 
 class FullUser(UserId):
     first_name: str | None = Field(default=..., max_length=125, description="Имя пользователя")

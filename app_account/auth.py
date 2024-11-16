@@ -1,10 +1,14 @@
 import jwt
+from uuid import UUID
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 from passlib.context import CryptContext
+from sqlalchemy import select
 
 from app_account.excepions import AuthExceptions
+from app_account.models import User
 from core.config import settings
+from core.database import SessionLocal
 
 
 class Authentication:
@@ -55,4 +59,58 @@ class Authentication:
             AuthExceptions.exc_jwt_decode_error()
 
         return payload
+
+
+class BaseAuthenticate:
+
+    @staticmethod
+    def _session_to_receive_user(query_) -> Optional[User]:
+        """
+        Возвращает экземпляр пользователя либо None.
+        Args:
+            query_: select from sqlalchemy
+        Returns: instance User model
+        """
+        session = SessionLocal()
+        with session as ses:
+            resp = ses.execute(query_)
+            instance: Optional[User] = resp.scalar_one_or_none()
+
+        return instance
+
+    def _get_user_by_id_or_none(self, user_id: UUID) -> Optional[User]:
+        """
+        Возвращает экземпляр пользователя по его id либо None.
+        Args:
+            user_id: id of the user
+        Returns: User or None
+        """
+        query_ = select(User).where(User.id == user_id)
+        user: User = self._session_to_receive_user(query_)
+        return user
+
+
+class IsAuthenticate(BaseAuthenticate):
+    def __init__(self, request, authorization_header: str):
+        self.request = request
+        self.authorization_header = authorization_header
+
+    def _check_headers(self) -> None:
+        AuthExceptions.exc_authorization_header_not_exist(self.authorization_header)
+        AuthExceptions.exc_jwt_not_exist(self.authorization_header)
+        return
+
+    def _authenticate(self) -> None:
+        clear_token = self.authorization_header.replace('JWT ', '')
+        payload: dict = Authentication.verify_access_token(clear_token)
+
+        user: User | None = self._get_user_by_id_or_none(user_id=payload["sub"])
+        AuthExceptions.exc_user_not_exist(user)
+        self.request.state.user = user
+        return
+
+    def is_authenticate(self) -> bool:
+        self._check_headers()
+        self._authenticate()
+        return True
 

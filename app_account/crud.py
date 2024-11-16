@@ -15,7 +15,7 @@ class UserCrud:
             user: schema UserRegister
         Returns: instance User
         """
-        instance = User(**user.dict())
+        instance = User(**user.model_dump())
         db.add(instance)
         db.commit()
         db.refresh(instance)
