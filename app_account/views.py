@@ -76,6 +76,5 @@ def read_all_users(db: Session = Depends(get_db)) -> List[dict]:
     response_model=FullUser
 )
 def read_full_user(user_id: UUID, db: Session = Depends(get_db)):
-    ucb = UserCommonBase(db)
-    user = ucb.show_full_user(user_id)
+    user = UserCommonBase(db).show_full_user(user_id)
     return user
