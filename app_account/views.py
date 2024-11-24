@@ -1,10 +1,10 @@
+from typing import Annotated, List
 from uuid import UUID
 from fastapi import APIRouter, Depends, status, Response, Request
-from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from .auth import Authentication, IsAuthenticate
+from .auth import Authentication, is_authenticate
 from .common import UserCommon, UserCommonBase
 from .crud import UserCrud
 from .excepions import UserExceptions
@@ -13,8 +13,6 @@ from .schemas import UserRegister, AuthUser, FullUser, UserId, User as UserSch
 from .swagger_schema import AccountSWSchema as Swag
 
 router = APIRouter(tags=["account"])
-
-header_scheme = APIKeyHeader(name="Authorization")
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, **Swag.register_user)
@@ -60,19 +58,23 @@ def logout_user(response: Response):
     return {"massage": "Пользователь успешно вышел из системы"}
 
 
-@router.get("/all_users", status_code=status.HTTP_200_OK)
-def read_all_users(
-        request: Request, auth_header: str = Depends(header_scheme), db: Session = Depends(get_db)
-):
-    is_authenticate = IsAuthenticate(request, auth_header).is_authenticate()
+@router.get(
+    "/all_users",
+    dependencies=[Depends(is_authenticate), ],
+    status_code=status.HTTP_200_OK,
+    response_model=List[FullUser]
+)
+def read_all_users(db: Session = Depends(get_db)) -> List[dict]:
     users = UserCommonBase(db).show_all_users()
-    print(f"{request.state.user = }")
-    print(f"{request.headers = }")
-    print(f"{request.query_params = }")
     return users
 
 
-@router.get("/user/{user_id}", status_code=status.HTTP_200_OK, response_model=FullUser)
+@router.get(
+    "/user/{user_id}",
+    dependencies=[Depends(is_authenticate), ],
+    status_code=status.HTTP_200_OK,
+    response_model=FullUser
+)
 def read_full_user(user_id: UUID, db: Session = Depends(get_db)):
     ucb = UserCommonBase(db)
     user = ucb.show_full_user(user_id)

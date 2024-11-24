@@ -2,13 +2,19 @@ import jwt
 from uuid import UUID
 from typing import Optional
 from datetime import datetime, timezone, timedelta
+
+from fastapi.security import APIKeyHeader
 from passlib.context import CryptContext
 from sqlalchemy import select
+from fastapi import Request, Depends
 
 from app_account.excepions import AuthExceptions
 from app_account.models import User
 from core.config import settings
 from core.database import SessionLocal
+
+
+header_scheme = APIKeyHeader(name="Authorization")
 
 
 class Authentication:
@@ -91,7 +97,7 @@ class BaseAuthenticate:
 
 
 class IsAuthenticate(BaseAuthenticate):
-    def __init__(self, request, authorization_header: str):
+    def __init__(self, request: Request, authorization_header: str):
         self.request = request
         self.authorization_header = authorization_header
 
@@ -113,4 +119,9 @@ class IsAuthenticate(BaseAuthenticate):
         self._check_headers()
         self._authenticate()
         return True
+
+
+def is_authenticate(request: Request, header: str = Depends(header_scheme)) -> bool:
+    is_auth = IsAuthenticate(request, header).is_authenticate()
+    return is_auth
 
