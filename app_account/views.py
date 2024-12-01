@@ -1,10 +1,10 @@
-from typing import Annotated, List
+from typing import List
 from uuid import UUID
 from fastapi import APIRouter, Depends, status, Response, Request
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from .auth import Authentication, is_authenticate
+from .auth import Authentication, is_authenticate, refresh_tokens
 from .common import UserCommon, UserCommonBase
 from .crud import UserCrud
 from .excepions import UserExceptions
@@ -34,7 +34,7 @@ def register_user(user: UserRegister, db: Session = Depends(get_db)) -> dict:
 
 
 @router.post("/login", response_model=UserId, status_code=status.HTTP_200_OK)
-def login_user(response: Response, user: AuthUser):
+def login_user(response: Response, user: AuthUser) -> User:
     """
     Аутентификация. Устанавливает заголовки "access_token" и "refresh_token" в ответе. Если пользователь не пройдет
     проверку будет вызвано исключение: HTTPException, status.HTTP_401_UNAUTHORIZED.
@@ -46,10 +46,18 @@ def login_user(response: Response, user: AuthUser):
     check_user: User | None = UserCommon.authenticate_user(username=user.username, password=user.password)
     UserExceptions.exc_user_unauthorized(check_user)
 
-    access_token: str = Authentication.create_access_token({"sub": str(check_user.id)})
-    response.headers["access_token"] = "JWT " + access_token
-    response.headers["refresh_token"] = ""
+    response.headers["access_token"]: str = Authentication.create_access_token({"sub": str(check_user.id)})
+    response.headers["refresh_token"]: str = Authentication.create_refresh_token({"sub": str(check_user.id)})
     return check_user
+
+
+@router.post("/update-tokens")
+def refresh_token(response: Response, refresh: str = Depends(refresh_tokens)) -> dict | None:
+    if refresh:
+        response.headers["access_token"]: str = Authentication.create_access_token({"sub": str("asdasd")})
+        response.headers["refresh_token"]: str = Authentication.create_refresh_token({"sub": str("asdada")})
+        return {"msg": "Новые токены"}
+    return
 
 
 @router.post("/logout")

@@ -1,8 +1,10 @@
 import jwt
-from uuid import UUID
+from uuid import UUID, uuid4
 from typing import Optional
 from datetime import datetime, timezone, timedelta
+from enum import Enum
 
+from fastapi.encoders import jsonable_encoder
 from fastapi.security import APIKeyHeader
 from passlib.context import CryptContext
 from sqlalchemy import select
@@ -14,7 +16,13 @@ from core.config import settings
 from core.database import SessionLocal
 
 
-header_scheme = APIKeyHeader(name="Authorization")
+class TypeToken(Enum):
+    ACCESS = APIKeyHeader(name="Authorization")
+    REFRESH = APIKeyHeader(name="Refresh_token")
+
+    @classmethod
+    def all_names(cls) -> list:
+        return cls._member_names_
 
 
 class Authentication:
@@ -43,18 +51,49 @@ class Authentication:
         return cls.pwd_context.verify(input_password, hashed_password)
 
     @classmethod
-    def create_access_token(cls, data: dict) -> str:
+    def create_token(cls, data: dict, type_t: str = TypeToken.ACCESS.name, ttl: timedelta = None) -> str:
         """
-        Создание JWT токена.
+        Создание JWT токена. По умолчанию создается access токен. По умолчанию время жизни токена указано в
+        переменных окружения.
         Args:
-            data:
+            data: Payload
+            type_t: access or refresh token
+            ttl: timedelta - время жизни токена
         Returns: jwt token
         """
+        current_time = datetime.now(tz=timezone.utc)
         to_encode = data.copy()
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        to_encode.update({"exp": expire})
-        encode_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
-        return encode_jwt
+        if type_t not in TypeToken.all_names():
+            AuthExceptions.exc_type_token_error()
+
+        if type_t == TypeToken.ACCESS.name:
+            time_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        else:
+            time_delta = timedelta(hours=settings.REFRESH_TOKEN_EXPIRE_HOURS)
+
+        if to_encode.get("nbf"):
+            exp = to_encode['nbf'] + ttl if ttl else to_encode['nbf'] + time_delta
+        else:
+            exp = current_time + ttl if ttl else current_time + time_delta
+
+        to_encode.update({
+            "iss": "service-teacher",  # издатель токена
+            "exp": exp,  # время, когда токен станет невалидным
+            "type": type_t,
+            "jti": jsonable_encoder(uuid4()),  # уникальный идентификатор токена
+            "iat": current_time,  # время, в которое был выдан токен
+            "nbf": data['nbf'] if data.get('nbf') else current_time  # время, с которого токен должен считаться действительным
+        })
+        encode_jwt: str = jwt.encode(payload=to_encode, key=settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+        return "JWT " + encode_jwt
+
+    @classmethod
+    def create_access_token(cls, data: dict, ttl: timedelta = None) -> str:
+        return cls.create_token(data=data, ttl=ttl)
+
+    @classmethod
+    def create_refresh_token(cls, data: dict, ttl: timedelta = None) -> str:
+        return cls.create_token(data=data, type_t=TypeToken.REFRESH.name, ttl=ttl)
 
     @classmethod
     def verify_access_token(cls, token: str) -> Optional[dict]:
@@ -121,7 +160,10 @@ class IsAuthenticate(BaseAuthenticate):
         return True
 
 
-def is_authenticate(request: Request, header: str = Depends(header_scheme)) -> bool:
+def is_authenticate(request: Request, header: str = Depends(TypeToken.ACCESS.value)) -> bool:
     is_auth = IsAuthenticate(request, header).is_authenticate()
     return is_auth
 
+
+def refresh_tokens(header: str = Depends(TypeToken.REFRESH.value)) -> str:
+    return header

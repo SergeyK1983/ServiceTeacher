@@ -73,3 +73,7 @@ class AuthExceptions(AccountBaseException):
         """
         if not user:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Ошибка аутентификации')
+
+    @classmethod
+    def exc_type_token_error(cls):
+        raise TypeError("Неверный тип токена")

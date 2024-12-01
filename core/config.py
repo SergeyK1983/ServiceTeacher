@@ -20,6 +20,7 @@ class Settings(BaseSettings, case_sensitive=True):
     SECRET_KEY: str = Field(alias="SECRET_KEY")
     ALGORITHM: str = Field(alias="ALGORITHM")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    REFRESH_TOKEN_EXPIRE_HOURS: int = Field(alias="REFRESH_TOKEN_EXPIRE_HOURS")
 
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
 
