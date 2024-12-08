@@ -95,13 +95,42 @@ class Authentication:
     def create_refresh_token(cls, data: dict, ttl: timedelta = None) -> str:
         return cls.create_token(data=data, type_t=TypeToken.REFRESH.name, ttl=ttl)
 
-    @classmethod
-    def verify_access_token(cls, token: str) -> Optional[dict]:
+    @staticmethod
+    def __get_payload(token: str) -> dict | None:
         payload = dict()
         try:
             payload: dict = jwt.decode(jwt=token, key=settings.SECRET_KEY, algorithms=settings.ALGORITHM)
         except (jwt.ExpiredSignatureError, jwt.DecodeError):
             AuthExceptions.exc_jwt_decode_error()
+        return payload
+
+    @classmethod
+    def verify_access_token(cls, token: str) -> dict:
+        """
+        Проверяет действительность access токена. Возвращает полезную нагрузку токена в виде словаря либо вызывает
+        ошибку аутентификации.
+        Args:
+            token: str: token without JWT
+        Returns: dict: payload
+        """
+        payload: dict | None = Authentication.__get_payload(token)
+        if payload.get("type") != TypeToken.ACCESS.name:
+            AuthExceptions.exc_invalid_token_type()
+
+        return payload
+
+    @classmethod
+    def verify_refresh_token(cls, token: str) -> dict:
+        """
+        Проверяет действительность refresh токена. Возвращает полезную нагрузку токена в виде словаря либо вызывает
+        ошибку аутентификации.
+        Args:
+            token: str: token without JWT
+        Returns: dict: payload
+        """
+        payload: dict | None = Authentication.__get_payload(token)
+        if payload.get("type") != TypeToken.REFRESH.name:
+            AuthExceptions.exc_invalid_token_type()
 
         return payload
 
@@ -161,9 +190,20 @@ class IsAuthenticate(BaseAuthenticate):
 
 
 def is_authenticate(request: Request, header: str = Depends(TypeToken.ACCESS.value)) -> bool:
+    """
+    Использовать для апи, для которых нужна аутентификация. Вернет True или вызовет ошибку аутентификации.
+    Args:
+        request:
+        header:
+    Returns:
+    """
     is_auth = IsAuthenticate(request, header).is_authenticate()
     return is_auth
 
 
 def refresh_tokens(header: str = Depends(TypeToken.REFRESH.value)) -> str:
+    """
+    Предназначено для обновления токенов. В заголовке использовать имя 'Refresh_token'. Соответственно должен быть
+    получен refresh токен.
+    """
     return header

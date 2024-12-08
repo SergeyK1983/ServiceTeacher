@@ -64,6 +64,14 @@ class AuthExceptions(AccountBaseException):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Token not found')
 
     @classmethod
+    def exc_invalid_token_type(cls):
+        """
+        Поднимает исключение. Используется при проверке типа передаваемого токена.\n
+        raise HTTPException, status.HTTP_401_UNAUTHORIZED
+        """
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Token not found')
+
+    @classmethod
     def exc_user_not_exist(cls, user: User | None):
         """
         Поднимает исключение, если не передан экземпляр пользователя.\n
@@ -76,4 +84,5 @@ class AuthExceptions(AccountBaseException):
 
     @classmethod
     def exc_type_token_error(cls):
+        """ Для внутреннего использования. Типизация наименований токенов. """
         raise TypeError("Неверный тип токена")

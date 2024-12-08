@@ -56,7 +56,7 @@ def refresh_token(response: Response, refresh: str = Depends(refresh_tokens)) ->
     if refresh:
         response.headers["access_token"]: str = Authentication.create_access_token({"sub": str("asdasd")})
         response.headers["refresh_token"]: str = Authentication.create_refresh_token({"sub": str("asdada")})
-        return {"msg": "Новые токены"}
+        return {"msg": "Токены обновлены"}
     return
 
 
