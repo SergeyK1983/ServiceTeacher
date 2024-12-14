@@ -14,7 +14,7 @@ class Settings(BaseSettings, case_sensitive=True):
     DB_USER: str = Field(alias="DB_USER")
     DB_PASS: str = Field(alias="DB_PASS")
     DB_HOST: str = Field(alias="DB_HOST")
-    DB_PORT: int = Field(alias="DB_PORT")
+    DB_PORT: str = Field(alias="DB_PORT")
 
     # auth
     SECRET_KEY: str = Field(alias="SECRET_KEY")
