@@ -21,7 +21,8 @@ class UserCommon:
         Возвращает экземпляр пользователя по его email либо None.
         Args:
             user_email: email of user
-        Returns: User or None
+        Returns:
+            User or None
         """
         query_ = select(User).where(User.email == user_email)
         user: User = cls._session_to_receive_user(query_)
@@ -33,7 +34,8 @@ class UserCommon:
         Возвращает экземпляр пользователя по его id либо None.
         Args:
             user_id: id of the user
-        Returns: User or None
+        Returns:
+            User or None
         """
         query_ = select(User).where(User.id == user_id)
         user: User = cls._session_to_receive_user(query_)
@@ -47,7 +49,8 @@ class UserCommon:
         Args:
             username: input username
             password: input password
-        Returns: instance User model or None
+        Returns:
+            instance User model or None
         """
         query_ = select(User).where(User.username == username)
         user: User = cls._session_to_receive_user(query_)
@@ -61,7 +64,8 @@ class UserCommon:
         Возвращает экземпляр пользователя либо None.
         Args:
             query_: select from sqlalchemy
-        Returns: instance User model
+        Returns:
+            instance User model
         """
         session = get_session()
         with session as ses:

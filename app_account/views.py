@@ -22,7 +22,8 @@ def register_user(user: UserRegister, db: Session = Depends(get_db)) -> dict:
     Args:
         user: schema UserRegister
         db: session
-    Returns: msg and schema User
+    Returns:
+        msg and schema User
     """
     user_instance = UserCommon.get_user_or_none(user.email)
     UserExceptions.exc_user_already_exists(user_instance)
@@ -41,7 +42,8 @@ def login_user(response: Response, user: AuthUser) -> User:
     Args:
         response: Response
         user: schema AuthUser
-    Returns: schema UserId and sets the headers "access_token" and "refresh_token"
+    Returns:
+        schema UserId and sets the headers "access_token" and "refresh_token"
     """
     check_user: User | None = UserCommon.authenticate_user(username=user.username, password=user.password)
     UserExceptions.exc_user_unauthorized(check_user)
@@ -52,12 +54,10 @@ def login_user(response: Response, user: AuthUser) -> User:
 
 
 @router.post("/update-tokens")
-def refresh_token(response: Response, refresh: str = Depends(refresh_tokens)) -> dict | None:
-    if refresh:
-        response.headers["access_token"]: str = Authentication.create_access_token({"sub": str("asdasd")})
-        response.headers["refresh_token"]: str = Authentication.create_refresh_token({"sub": str("asdada")})
-        return {"msg": "Токены обновлены"}
-    return
+def refresh_token(response: Response, user: User = Depends(refresh_tokens)) -> dict:
+    response.headers["access_token"]: str = Authentication.create_access_token({"sub": str(user.id)})
+    response.headers["refresh_token"]: str = Authentication.create_refresh_token({"sub": str(user.id)})
+    return {"msg": "Токены обновлены"}
 
 
 @router.post("/logout")

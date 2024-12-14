@@ -13,7 +13,8 @@ class UserCrud:
         Args:
             db: session
             user: schema UserRegister
-        Returns: instance User
+        Returns:
+            instance User
         """
         instance = User(**user.model_dump())
         db.add(instance)

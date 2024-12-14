@@ -35,7 +35,8 @@ class Authentication:
         Хеширование пароля пользователя
         Args:
             password: user password
-        Returns: hashed password
+        Returns:
+            hashed password
         """
         return cls.pwd_context.hash(password)
 
@@ -46,7 +47,8 @@ class Authentication:
         Args:
             input_password: input password
             hashed_password: hash in database
-        Returns: True if good
+        Returns:
+            True if good
         """
         return cls.pwd_context.verify(input_password, hashed_password)
 
@@ -59,7 +61,8 @@ class Authentication:
             data: Payload
             type_t: access or refresh token
             ttl: timedelta - время жизни токена
-        Returns: jwt token
+        Returns:
+            jwt token
         """
         current_time = datetime.now(tz=timezone.utc)
         to_encode = data.copy()
@@ -111,7 +114,8 @@ class Authentication:
         ошибку аутентификации.
         Args:
             token: str: token without JWT
-        Returns: dict: payload
+        Returns:
+            dict: payload
         """
         payload: dict | None = Authentication.__get_payload(token)
         if payload.get("type") != TypeToken.ACCESS.name:
@@ -126,7 +130,8 @@ class Authentication:
         ошибку аутентификации.
         Args:
             token: str: token without JWT
-        Returns: dict: payload
+        Returns:
+            dict: payload
         """
         payload: dict | None = Authentication.__get_payload(token)
         if payload.get("type") != TypeToken.REFRESH.name:
@@ -143,7 +148,8 @@ class BaseAuthenticate:
         Возвращает экземпляр пользователя либо None.
         Args:
             query_: select from sqlalchemy
-        Returns: instance User model
+        Returns:
+            instance User model
         """
         session = SessionLocal()
         with session as ses:
@@ -157,7 +163,8 @@ class BaseAuthenticate:
         Возвращает экземпляр пользователя по его id либо None.
         Args:
             user_id: id of the user
-        Returns: User or None
+        Returns:
+            User or None
         """
         query_ = select(User).where(User.id == user_id)
         user: User = self._session_to_receive_user(query_)
@@ -165,45 +172,54 @@ class BaseAuthenticate:
 
 
 class IsAuthenticate(BaseAuthenticate):
-    def __init__(self, request: Request, authorization_header: str):
+    def __init__(self, request: Request, authorization_header: str, refresh: bool = False):
         self.request = request
+        self.request.state.user = None
         self.authorization_header = authorization_header
+        self.refresh = refresh
 
     def _check_headers(self) -> None:
         AuthExceptions.exc_authorization_header_not_exist(self.authorization_header)
         AuthExceptions.exc_jwt_not_exist(self.authorization_header)
         return
 
-    def _authenticate(self) -> None:
+    def _authenticate(self) -> User:
         clear_token = self.authorization_header.replace('JWT ', '')
-        payload: dict = Authentication.verify_access_token(clear_token)
+        payload: dict = Authentication.verify_access_token(clear_token) if not self.refresh else \
+            Authentication.verify_refresh_token(clear_token)
 
         user: User | None = self._get_user_by_id_or_none(user_id=payload["sub"])
         AuthExceptions.exc_user_not_exist(user)
         self.request.state.user = user
-        return
+        return user
 
     def is_authenticate(self) -> bool:
         self._check_headers()
         self._authenticate()
         return True
 
+    def get_refresh(self) -> User:
+        self._check_headers()
+        user = self._authenticate()
+        return user
+
 
 def is_authenticate(request: Request, header: str = Depends(TypeToken.ACCESS.value)) -> bool:
     """
-    Использовать для апи, для которых нужна аутентификация. Вернет True или вызовет ошибку аутентификации.
+    Использовать для апи, в которых нужна аутентификация. Вернет True или вызовет ошибку аутентификации.
     Args:
-        request:
-        header:
+        request: Request
+        header: token in the header (access_token)
     Returns:
+        True if token is valid else raises exception
     """
-    is_auth = IsAuthenticate(request, header).is_authenticate()
-    return is_auth
+    return IsAuthenticate(request, header).is_authenticate()
 
 
-def refresh_tokens(header: str = Depends(TypeToken.REFRESH.value)) -> str:
+def refresh_tokens(request: Request, header: str = Depends(TypeToken.REFRESH.value)) -> User:
     """
     Предназначено для обновления токенов. В заголовке использовать имя 'Refresh_token'. Соответственно должен быть
     получен refresh токен.
     """
-    return header
+    user: User = IsAuthenticate(request, header, refresh=True).get_refresh()
+    return user
