@@ -1,6 +1,6 @@
 import jwt
 from uuid import UUID, uuid4
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 
@@ -10,6 +10,7 @@ from passlib.context import CryptContext
 from sqlalchemy import select
 from fastapi import Request, Depends
 
+from app_account.crud import TokenCRUD
 from app_account.excepions import AuthExceptions
 from app_account.models import User
 from core.config import settings
@@ -65,21 +66,26 @@ class Authentication:
             jwt token
         """
         current_time = datetime.now(tz=timezone.utc)
-        to_encode = data.copy()
+        to_encode: dict[str, Any] = dict()
+        to_encode["nbf"] = data.get("not_before")
         if type_t not in TypeToken.all_names():
             AuthExceptions.exc_type_token_error()
 
         if type_t == TypeToken.ACCESS.name:
             time_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+            flag_access = True
         else:
             time_delta = timedelta(hours=settings.REFRESH_TOKEN_EXPIRE_HOURS)
+            flag_access = False
 
         if to_encode.get("nbf"):
             exp = to_encode['nbf'] + ttl if ttl else to_encode['nbf'] + time_delta
         else:
             exp = current_time + ttl if ttl else current_time + time_delta
 
+        user_device: str = data.get("user_device") if data.get("user_device") else "no_device"
         to_encode.update({
+            "sub": str(data.get("user_id")) + "=" + user_device,
             "iss": "service-teacher",  # издатель токена
             "exp": exp,  # время, когда токен станет невалидным
             "type": type_t,
@@ -87,6 +93,7 @@ class Authentication:
             "iat": current_time,  # время, в которое был выдан токен
             "nbf": data['nbf'] if data.get('nbf') else current_time  # время, с которого токен должен считаться действительным
         })
+        TokenCRUD.save_token(data=to_encode, flag=flag_access)
         encode_jwt: str = jwt.encode(payload=to_encode, key=settings.SECRET_KEY, algorithm=settings.ALGORITHM)
         return "JWT " + encode_jwt
 

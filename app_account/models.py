@@ -32,10 +32,10 @@ class User(Base):
     is_staff: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, comment="Персонал")
 
     access_tokens: Mapped[list["AssignedJWTAccessToken"]] = relationship(
-        back_populates="user", lazy="joined", cascade="all, delete-orphan"
-    )
+        back_populates="user", cascade="all, delete-orphan"
+    )  # lazy="joined",
     refresh_tokens: Mapped[list["AssignedJWTRefreshToken"]] = relationship(
-        back_populates="user", lazy="joined", cascade="all, delete-orphan"
+        back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self):
@@ -48,7 +48,7 @@ class AssignedJWTAccessToken(Base):
     """
     __tablename__ = "assigned_jwt_access_token"
 
-    id: Mapped[BigInteger] = mapped_column(BigInteger, unique=True, primary_key=True)
+    id: Mapped[BigInteger] = mapped_column(BigInteger, unique=True, primary_key=True, autoincrement=True)
     jti: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False, unique=True, index=True, comment="Идентификатор токена"
     )
@@ -57,7 +57,7 @@ class AssignedJWTAccessToken(Base):
     device_id: Mapped[str] = mapped_column(String(100), default="Не указано", comment="Устройство пользователя")
 
     user_id: Mapped[UUID] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
-    user: Mapped[User] = relationship(back_populates="access_tokens", cascade="all, delete-orphan")
+    user: Mapped[User] = relationship(back_populates="access_tokens")
 
     def __repr__(self):
         return f"{self.id}-{self.is_active}-{self.expired_time}"
@@ -69,7 +69,7 @@ class AssignedJWTRefreshToken(Base):
     """
     __tablename__ = "assigned_jwt_refresh_token"
 
-    id: Mapped[BigInteger] = mapped_column(BigInteger, unique=True, primary_key=True)
+    id: Mapped[BigInteger] = mapped_column(BigInteger, unique=True, primary_key=True, autoincrement=True)
     jti: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False, unique=True, index=True, comment="Идентификатор токена"
     )
@@ -78,7 +78,7 @@ class AssignedJWTRefreshToken(Base):
     device_id: Mapped[str] = mapped_column(String(100), default="Не указано", comment="Устройство пользователя")
 
     user_id: Mapped[UUID] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
-    user: Mapped[User] = relationship(back_populates="refresh_tokens", cascade="all, delete-orphan")
+    user: Mapped[User] = relationship(back_populates="refresh_tokens")
 
     def __repr__(self):
         return f"{self.id}-{self.is_active}-{self.expired_time}"

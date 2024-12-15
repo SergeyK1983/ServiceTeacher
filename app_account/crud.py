@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
 
-from .models import User
-from .schemas import UserRegister
+from core.database import SessionLocal
+from .models import User, AssignedJWTAccessToken, AssignedJWTRefreshToken
+from .schemas import UserRegister, JWTAccessToken, JWTRefreshToken
 
 
 class UserCrud:
@@ -22,4 +23,22 @@ class UserCrud:
         db.refresh(instance)
         return instance
 
+
+class TokenCRUD:
+
+    @staticmethod
+    def save_token(data: dict, flag: bool) -> None:
+        session = SessionLocal()
+        if flag:
+            valid_data = JWTAccessToken.validate(data)
+            instance = AssignedJWTAccessToken(**valid_data.model_dump())
+        else:
+            valid_data = JWTRefreshToken.validate(data)
+            instance = AssignedJWTRefreshToken(**valid_data.model_dump())
+
+        session.add(instance)
+        session.commit()
+        session.refresh(instance)
+        session.close()
+        return
 

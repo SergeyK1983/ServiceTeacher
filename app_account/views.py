@@ -47,9 +47,14 @@ def login_user(response: Response, user: AuthUser) -> User:
     """
     check_user: User | None = UserCommon.authenticate_user(username=user.username, password=user.password)
     UserExceptions.exc_user_unauthorized(check_user)
+    data = {
+        "user_id": check_user.id,
+        "user_device": user.device_id,
+        "not_before": user.not_before,
+    }
 
-    response.headers["access_token"]: str = Authentication.create_access_token({"sub": str(check_user.id)})
-    response.headers["refresh_token"]: str = Authentication.create_refresh_token({"sub": str(check_user.id)})
+    response.headers["access_token"]: str = Authentication.create_access_token(data=data)  # {"sub": str(check_user.id)}
+    response.headers["refresh_token"]: str = Authentication.create_refresh_token(data=data)
     return check_user
 
 
