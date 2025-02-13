@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import List
 from uuid import UUID
 from fastapi import APIRouter, Depends, status, Response, Request
@@ -5,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from .auth import Authentication, is_authenticate, refresh_tokens
-from .common import UserCommon, UserCommonBase
+from .common import UserCommon, UserCommonBase, TokenCommon
 from .crud import UserCrud
 from .excepions import UserExceptions
 from .models import User
@@ -41,21 +42,20 @@ def login_user(response: Response, user: AuthUser) -> User:
     проверку будет вызвано исключение: HTTPException, status.HTTP_401_UNAUTHORIZED.
     Args:
         response: Response
-        user: schema AuthUser
+        user: schema AuthUser (from post body)
     Returns:
         schema UserId and sets the headers "access_token" and "refresh_token"
     """
-    check_user: User | None = UserCommon.authenticate_user(username=user.username, password=user.password)
-    UserExceptions.exc_user_unauthorized(check_user)
-    data = {
-        "user_id": check_user.id,
-        "user_device": user.device_id,
-        "not_before": user.not_before,
-    }
+    user_verified: User | None = UserCommon.authenticate_user(username=user.username, password=user.password)
+    UserExceptions.exc_user_unauthorized(user_verified)
 
-    response.headers["access_token"]: str = Authentication.create_access_token(data=data)  # {"sub": str(check_user.id)}
-    response.headers["refresh_token"]: str = Authentication.create_refresh_token(data=data)
-    return check_user
+    current_time = datetime.now(tz=timezone.utc)
+    token_common = TokenCommon(user_verified=user_verified, user=user, current_time=current_time)
+    access, refresh = token_common.get_tokens()
+
+    response.headers["access_token"]: str = access
+    response.headers["refresh_token"]: str = refresh
+    return user_verified
 
 
 @router.post("/update-tokens")
@@ -63,6 +63,12 @@ def refresh_token(response: Response, user: User = Depends(refresh_tokens)) -> d
     response.headers["access_token"]: str = Authentication.create_access_token({"sub": str(user.id)})
     response.headers["refresh_token"]: str = Authentication.create_refresh_token({"sub": str(user.id)})
     return {"msg": "Токены обновлены"}
+
+
+@router.post("/update-access-token")
+def refresh_token(response: Response, user: User = Depends(refresh_tokens)) -> dict:
+    response.headers["access_token"]: str = Authentication.create_access_token({"sub": str(user.id)})
+    return {"msg": "Токен доступа обновлен"}
 
 
 @router.post("/logout")

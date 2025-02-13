@@ -1,16 +1,32 @@
+from contextlib import contextmanager
+from datetime import datetime, timedelta
 from uuid import UUID
-from sqlalchemy import select
+
+from sqlalchemy import select, update, insert
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Any
 
 from core.database import SessionLocal
-from .models import User
-from .auth import Authentication
-from .schemas import FullUser, UserId
+from .constants import DEFAULT_USER_DEVICE
+from .crud import TokenCRUD
+from .models import User, AssignedJWTAccessToken, AssignedJWTRefreshToken
+from .auth import Authentication, TypeToken
+from .schemas import FullUser, UserId, AuthUser, JWTAccessToken, JWTRefreshToken
 
 
 def get_session():
     return SessionLocal()
+
+
+class BaseCommon:
+
+    @contextmanager
+    def _get_session_db(self):
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
 
 
 class UserCommon:
@@ -75,10 +91,112 @@ class UserCommon:
         return instance
 
 
+class TokenCommon(BaseCommon):
+
+    def __init__(
+            self,
+            user_verified: User,
+            user: AuthUser,
+            current_time: datetime | None = None,
+            ttl: timedelta | None = None  # время жизни токена, если нужно отличное от значения в переменной окружения
+    ):
+        self.user_verified: User = user_verified
+        self.user: AuthUser = user
+        self.current_time: datetime | None = current_time
+        self.ttl: timedelta | None = ttl
+
+    def _get_token_model(self, payload: dict):
+        token_model = None
+        if payload["type"] == TypeToken.ACCESS.name:
+            token_model = AssignedJWTAccessToken
+        elif payload["type"] == TypeToken.REFRESH.name:
+            token_model = AssignedJWTRefreshToken
+        return token_model
+
+    def _deactivate_current_user_tokens(self, payload_token: dict) -> None:
+        token_model = self._get_token_model(payload=payload_token)
+        user_device: str = self.user.device_id if self.user.device_id else DEFAULT_USER_DEVICE
+
+        if token_model:
+            stmt = (
+                update(
+                    token_model
+                ).
+                where(
+                    token_model.user_id == self.user_verified.id,
+                    token_model.device_id == user_device,
+                    token_model.is_active
+                ).
+                values(
+                    is_active=False
+                )
+            )
+            TokenCRUD.update_token(stmt)
+        return
+
+    def _insert_user_token(self, payload_token: dict) -> None:
+        token_model = self._get_token_model(payload=payload_token)
+        payload_token.update({"user_id": self.user_verified})
+
+        if self.user.device_id:
+            payload_token.update({"device_id": self.user.device_id})
+
+        validator = JWTAccessToken if isinstance(token_model, AssignedJWTAccessToken) else JWTRefreshToken
+        valid_data = validator.validate(payload_token)
+        valid_data.is_active = True
+        stmt = (
+            insert(
+                token_model
+            ).
+            values(
+                jti=valid_data.jti,
+                is_active=valid_data.is_active,
+                expired_time=valid_data.expired_time,
+                device_id=valid_data.device_id,
+                user_id=valid_data.user_id.id
+            )
+        )
+        TokenCRUD.insert_token(stmt)
+        return
+
+    def _prepare_data(self) -> dict:
+        data = {
+            "user_id": self.user_verified,
+            "user_device": self.user.device_id,
+            "not_before": self.user.not_before,
+        }
+        return data
+
+    def get_access_token(self) -> str:
+        payload_data: dict = self._prepare_data()
+        access_token: str = Authentication.create_access_token(
+            data=payload_data, current_time=self.current_time, ttl=self.ttl
+        )
+        payload_token: dict[str, Any] = Authentication.payload_token
+        self._deactivate_current_user_tokens(payload_token)
+        self._insert_user_token(payload_token)
+        return access_token
+
+    def get_refresh_token(self) -> str:
+        payload_data: dict = self._prepare_data()
+        refresh_token: str = Authentication.create_refresh_token(
+            data=payload_data, current_time=self.current_time, ttl=self.ttl
+        )
+        payload_token: dict[str, Any] = Authentication.payload_token
+        self._deactivate_current_user_tokens(payload_token)
+        self._insert_user_token(payload_token)
+        return refresh_token
+
+    def get_tokens(self) -> tuple[str, str]:
+        access: str = self.get_access_token()
+        refresh: str = self.get_refresh_token()
+        return access, refresh
+
+
 class UserCommonBase:
 
     def __init__(self, db: Session):
-        self.session: Session = db
+        self.session: Session = db  # ожидается сессия от database.py
 
     def show_all_users(self):
         session = get_session()

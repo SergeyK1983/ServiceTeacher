@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
 
+from app_account.constants import DEFAULT_USER_DEVICE
+
 
 class User(BaseModel):
     username: str = Field(default=..., max_length=125, description="Имя пользователя в системе")
@@ -38,7 +40,7 @@ class AuthUser(BaseModel):
     device_id: str | None = Field(
         default=None, min_length=1, max_length=100, title="Устройство", description="Устройство пользователя"
     )
-    not_before: datetime | None = Field(default=None, description="Начало действия токена")
+    not_before: datetime | None = Field(default=None, title="nbf", description="Начало действия токена")
 
     @classmethod
     @field_validator('not_before', mode="before")
@@ -63,8 +65,8 @@ class AllUsers(BaseModel):
 class JWTToken(BaseModel):
     jti: UUID = Field(description="Идентификатор токена")
     is_active: bool = Field(default=False, description="Активен")
-    expired_time: datetime = Field(description="Окончание доступа")
-    device_id: str = Field(default="Не указано", description="Устройство пользователя")
+    expired_time: datetime = Field(alias="exp", description="Окончание доступа")
+    device_id: str = Field(default=DEFAULT_USER_DEVICE, description="Устройство пользователя")
     user_id: UserId = Field(description="id пользователя")
 
 

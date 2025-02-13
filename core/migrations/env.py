@@ -80,7 +80,12 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            compare_server_default=True,  # нужно добавлять!
+            compare_type=True,  # Чтобы отслеживать изменения типов столбцов
+            compare_server_default=True,  # нужно добавлять! Отслеживание изменений значений server_default
+            compare_index=True,  # отслеживать изменения индексов
+            compare_foreign_keys=True,  # Отслеживание внешних ключей
+            render_item_type=True,  # Принудительное создание VARCHAR для String
+            # compare_metadata=False,  # Отключает сравнение моделей и БД. Полезно, если миграции пишутся вручную.
         )
 
         with context.begin_transaction():

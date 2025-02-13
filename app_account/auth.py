@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 from typing import Optional, Any
 from datetime import datetime, timezone, timedelta
 from enum import Enum
+from copy import deepcopy
 
 from fastapi.encoders import jsonable_encoder
 from fastapi.security import APIKeyHeader
@@ -29,6 +30,7 @@ class TypeToken(Enum):
 class Authentication:
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    payload_token: dict = dict()
 
     @classmethod
     def get_password_hash(cls, password: str) -> str:
@@ -54,56 +56,58 @@ class Authentication:
         return cls.pwd_context.verify(input_password, hashed_password)
 
     @classmethod
-    def create_token(cls, data: dict, type_t: str = TypeToken.ACCESS.name, ttl: timedelta = None) -> str:
+    def _create_token(
+            cls,
+            data: dict,
+            current_time: datetime | None,
+            ttl: timedelta | None,
+            type_t: str = TypeToken.ACCESS.name
+    ) -> str:
         """
         Создание JWT токена. По умолчанию создается access токен. По умолчанию время жизни токена указано в
         переменных окружения.
         Args:
             data: Payload
-            type_t: access or refresh token
+            current_time: Current time
+            type_t: Access or Refresh token
             ttl: timedelta - время жизни токена
         Returns:
-            jwt token
+            str: jwt token
         """
-        current_time = datetime.now(tz=timezone.utc)
-        to_encode: dict[str, Any] = dict()
-        to_encode["nbf"] = data.get("not_before")
+        if not current_time:
+            current_time = datetime.now(tz=timezone.utc)
+
         if type_t not in TypeToken.all_names():
             AuthExceptions.exc_type_token_error()
 
         if type_t == TypeToken.ACCESS.name:
             time_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-            flag_access = True
         else:
             time_delta = timedelta(hours=settings.REFRESH_TOKEN_EXPIRE_HOURS)
-            flag_access = False
 
-        if to_encode.get("nbf"):
-            exp = to_encode['nbf'] + ttl if ttl else to_encode['nbf'] + time_delta
-        else:
-            exp = current_time + ttl if ttl else current_time + time_delta
-
+        nbf: datetime = data.get("not_before") if data.get("not_before") else current_time
         user_device: str = data.get("user_device") if data.get("user_device") else "no_device"
-        to_encode.update({
-            "sub": str(data.get("user_id")) + "=" + user_device,
+
+        to_encode: dict[str, Any] = {
+            "sub": str(data.get("user_id").id) + "=" + user_device,  # субъект, которому выдан токен
             "iss": "service-teacher",  # издатель токена
-            "exp": exp,  # время, когда токен станет невалидным
+            "exp": nbf + ttl if ttl else nbf + time_delta,  # время, когда токен станет невалидным
             "type": type_t,
             "jti": jsonable_encoder(uuid4()),  # уникальный идентификатор токена
             "iat": current_time,  # время, в которое был выдан токен
-            "nbf": data['nbf'] if data.get('nbf') else current_time  # время, с которого токен должен считаться действительным
-        })
-        TokenCRUD.save_token(data=to_encode, flag=flag_access)
+            "nbf": nbf,  # время, с которого токен должен считаться действительным
+        }
+        cls.payload_token = deepcopy(to_encode)
         encode_jwt: str = jwt.encode(payload=to_encode, key=settings.SECRET_KEY, algorithm=settings.ALGORITHM)
         return "JWT " + encode_jwt
 
     @classmethod
-    def create_access_token(cls, data: dict, ttl: timedelta = None) -> str:
-        return cls.create_token(data=data, ttl=ttl)
+    def create_access_token(cls, data: dict, current_time: datetime = None, ttl: timedelta = None) -> str:
+        return cls._create_token(data=data, current_time=current_time, ttl=ttl)
 
     @classmethod
-    def create_refresh_token(cls, data: dict, ttl: timedelta = None) -> str:
-        return cls.create_token(data=data, type_t=TypeToken.REFRESH.name, ttl=ttl)
+    def create_refresh_token(cls, data: dict, current_time: datetime = None, ttl: timedelta = None) -> str:
+        return cls._create_token(data=data, current_time=current_time, ttl=ttl, type_t=TypeToken.REFRESH.name)
 
     @staticmethod
     def __get_payload(token: str) -> dict | None:

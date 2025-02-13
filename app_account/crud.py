@@ -1,8 +1,22 @@
+from contextlib import contextmanager
+
 from sqlalchemy.orm import Session
 
 from core.database import SessionLocal
-from .models import User, AssignedJWTAccessToken, AssignedJWTRefreshToken
-from .schemas import UserRegister, JWTAccessToken, JWTRefreshToken
+from .models import User
+from .schemas import UserRegister
+
+
+class BaseCRUD:
+
+    @classmethod
+    @contextmanager
+    def _get_session_db(cls):
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
 
 
 class UserCrud:
@@ -24,21 +38,19 @@ class UserCrud:
         return instance
 
 
-class TokenCRUD:
+class TokenCRUD(BaseCRUD):
 
-    @staticmethod
-    def save_token(data: dict, flag: bool) -> None:
-        session = SessionLocal()
-        if flag:
-            valid_data = JWTAccessToken.validate(data)
-            instance = AssignedJWTAccessToken(**valid_data.model_dump())
-        else:
-            valid_data = JWTRefreshToken.validate(data)
-            instance = AssignedJWTRefreshToken(**valid_data.model_dump())
+    @classmethod
+    def update_token(cls, stmt) -> None:
+        with cls._get_session_db() as db:
+            db.execute(stmt)
+            db.commit()
+        return None
 
-        session.add(instance)
-        session.commit()
-        session.refresh(instance)
-        session.close()
-        return
+    @classmethod
+    def insert_token(cls, stmt) -> None:
+        with cls._get_session_db() as db:
+            db.execute(stmt)
+            db.commit()
+        return None
 
