@@ -7,12 +7,12 @@ from app_account.constants import DEFAULT_USER_DEVICE
 
 
 class User(BaseModel):
-    username: str = Field(default=..., max_length=125, description="Имя пользователя в системе")
-    email: EmailStr = Field(default=..., max_length=80, description="Электронная почта пользователя")
+    username: str = Field(max_length=125, description="Имя пользователя в системе")
+    email: EmailStr = Field(max_length=80, description="Электронная почта пользователя")
 
 
 class UserId(User):
-    id: UUID = Field(default=..., description="Идентификатор")
+    id: UUID = Field(description="Идентификатор")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -20,10 +20,10 @@ class UserId(User):
 
 
 class FullUser(UserId):
-    first_name: str | None = Field(default=..., max_length=125, description="Имя пользователя")
-    last_name: str | None = Field(default=..., max_length=125, description="Фамилия пользователя")
-    created: datetime = Field(default=..., description="Дата регистрации")
-    updated: datetime = Field(default=..., description="Дата изменения")
+    first_name: str | None = Field(max_length=125, description="Имя пользователя")
+    last_name: str | None = Field(max_length=125, description="Фамилия пользователя")
+    created: datetime = Field(description="Дата регистрации")
+    updated: datetime = Field(description="Дата изменения")
 
     model_config = ConfigDict(
         from_attributes=True,

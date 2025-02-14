@@ -11,7 +11,6 @@ from passlib.context import CryptContext
 from sqlalchemy import select
 from fastapi import Request, Depends
 
-from app_account.crud import TokenCRUD
 from app_account.excepions import AuthExceptions
 from app_account.models import User
 from core.config import settings
