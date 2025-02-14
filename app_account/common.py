@@ -9,6 +9,7 @@ from typing import Optional, Any
 from core.database import SessionLocal
 from .constants import DEFAULT_USER_DEVICE
 from .crud import TokenCRUD
+from .excepions import AuthExceptions
 from .models import User, AssignedJWTAccessToken, AssignedJWTRefreshToken
 from .auth import Authentication, TypeToken
 from .schemas import FullUser, UserId, AuthUser, JWTAccessToken, JWTRefreshToken
@@ -105,37 +106,32 @@ class TokenCommon(BaseCommon):
         self.current_time: datetime | None = current_time
         self.ttl: timedelta | None = ttl
 
-    def _get_token_model(self, payload: dict):
+    def _get_token_model(self, token_type: str) -> AssignedJWTAccessToken | AssignedJWTRefreshToken:
+        """
+        Предоставляет модель токена в зависимости от типа (Access или Refresh), либо вызовет ошибку TypeError.
+        Args:
+            token_type: str: тип токена
+        Returns:
+            AssignedJWTAccessToken | AssignedJWTRefreshToken
+        """
         token_model = None
-        if payload["type"] == TypeToken.ACCESS.name:
+        if token_type == TypeToken.ACCESS.name:
             token_model = AssignedJWTAccessToken
-        elif payload["type"] == TypeToken.REFRESH.name:
+        elif token_type == TypeToken.REFRESH.name:
             token_model = AssignedJWTRefreshToken
+        if token_model is None:
+            AuthExceptions.exc_type_token_error()
         return token_model
 
     def _deactivate_current_user_tokens(self, payload_token: dict) -> None:
-        token_model = self._get_token_model(payload=payload_token)
+        token_model = self._get_token_model(token_type=payload_token["type"])
         user_device: str = self.user.device_id if self.user.device_id else DEFAULT_USER_DEVICE
 
-        if token_model:
-            stmt = (
-                update(
-                    token_model
-                ).
-                where(
-                    token_model.user_id == self.user_verified.id,
-                    token_model.device_id == user_device,
-                    token_model.is_active
-                ).
-                values(
-                    is_active=False
-                )
-            )
-            TokenCRUD.update_token(stmt)
+        TokenCRUD.update_token(token_model, self.user_verified, user_device)
         return
 
     def _insert_user_token(self, payload_token: dict) -> None:
-        token_model = self._get_token_model(payload=payload_token)
+        token_model = self._get_token_model(token_type=payload_token["type"])
         payload_token.update({"user_id": self.user_verified})
 
         if self.user.device_id:
@@ -144,19 +140,8 @@ class TokenCommon(BaseCommon):
         validator = JWTAccessToken if isinstance(token_model, AssignedJWTAccessToken) else JWTRefreshToken
         valid_data = validator.validate(payload_token)
         valid_data.is_active = True
-        stmt = (
-            insert(
-                token_model
-            ).
-            values(
-                jti=valid_data.jti,
-                is_active=valid_data.is_active,
-                expired_time=valid_data.expired_time,
-                device_id=valid_data.device_id,
-                user_id=valid_data.user_id.id
-            )
-        )
-        TokenCRUD.insert_token(stmt)
+
+        TokenCRUD.insert_token(token_model=token_model, data=valid_data)
         return
 
     def _prepare_data(self) -> dict:
