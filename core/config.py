@@ -22,6 +22,9 @@ class Settings(BaseSettings, case_sensitive=True):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(alias="ACCESS_TOKEN_EXPIRE_MINUTES")
     REFRESH_TOKEN_EXPIRE_HOURS: int = Field(alias="REFRESH_TOKEN_EXPIRE_HOURS")
 
+    # App
+    APPLICATION: str = Field(alias="APPLICATION")
+
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
 
     # class Config:

@@ -90,7 +90,7 @@ class Authentication:
 
         to_encode: dict[str, Any] = {
             "sub": str(data.get("user_id").id) + "=" + user_device,  # субъект, которому выдан токен
-            "iss": "service-teacher",  # издатель токена
+            "iss": settings.APPLICATION,  # издатель токена
             "exp": nbf + ttl if ttl else nbf + time_delta,  # время, когда токен станет невалидным
             "type": type_t,
             "jti": jsonable_encoder(uuid4()),  # уникальный идентификатор токена
