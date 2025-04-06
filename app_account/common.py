@@ -1,8 +1,7 @@
-from contextlib import contextmanager
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select, update, insert
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing import Optional, Any
 
@@ -12,22 +11,11 @@ from .crud import TokenCRUD
 from .excepions import AuthExceptions
 from .models import User, AssignedJWTAccessToken, AssignedJWTRefreshToken
 from .auth import Authentication, TypeToken
-from .schemas import FullUser, UserId, AuthUser, JWTAccessToken, JWTRefreshToken
+from .schemas import FullUserSchema, UserIdSchema, AuthUserSchema, AcTokenSchema, ReTokenSchema
 
 
 def get_session():
     return SessionLocal()
-
-
-class BaseCommon:
-
-    @contextmanager
-    def _get_session_db(self):
-        session = SessionLocal()
-        try:
-            yield session
-        finally:
-            session.close()
 
 
 class UserCommon:
@@ -92,17 +80,17 @@ class UserCommon:
         return instance
 
 
-class TokenCommon(BaseCommon):
+class TokenCommon:
 
     def __init__(
             self,
             user_verified: User,
-            user: AuthUser,
+            user: AuthUserSchema,
             current_time: datetime | None = None,
             ttl: timedelta | None = None  # время жизни токена, если нужно отличное от значения в переменной окружения
     ):
         self.user_verified: User = user_verified
-        self.user: AuthUser = user
+        self.user_schema: AuthUserSchema = user
         self.current_time: datetime | None = current_time
         self.ttl: timedelta | None = ttl
 
@@ -119,36 +107,42 @@ class TokenCommon(BaseCommon):
             token_model = AssignedJWTAccessToken
         elif token_type == TypeToken.REFRESH.name:
             token_model = AssignedJWTRefreshToken
-        if token_model is None:
-            AuthExceptions.exc_type_token_error()
-        return token_model
+        return token_model if token_model is not None else AuthExceptions.exc_type_token_error()
 
     def _deactivate_current_user_tokens(self, payload_token: dict) -> None:
-        token_model = self._get_token_model(token_type=payload_token["type"])
-        user_device: str = self.user.device_id if self.user.device_id else DEFAULT_USER_DEVICE
+        token_model: AssignedJWTAccessToken | AssignedJWTRefreshToken = self._get_token_model(
+            token_type=payload_token["type"]
+        )
+        user_device: str = self.user_schema.device_id if self.user_schema.device_id else DEFAULT_USER_DEVICE
 
-        TokenCRUD.update_token(token_model, self.user_verified, user_device)
+        TokenCRUD.deactivate_token(token_model, self.user_verified, user_device)
         return
 
     def _insert_user_token(self, payload_token: dict) -> None:
         token_model = self._get_token_model(token_type=payload_token["type"])
         payload_token.update({"user_id": self.user_verified})
 
-        if self.user.device_id:
-            payload_token.update({"device_id": self.user.device_id})
+        if self.user_schema.device_id:
+            payload_token.update({"device_id": self.user_schema.device_id})
 
-        validator = JWTAccessToken if isinstance(token_model, AssignedJWTAccessToken) else JWTRefreshToken
-        valid_data = validator.validate(payload_token)
+        validator = AcTokenSchema if isinstance(token_model, AssignedJWTAccessToken) else ReTokenSchema
+        valid_data = validator.model_validate(payload_token)
         valid_data.is_active = True
 
         TokenCRUD.insert_token(token_model=token_model, data=valid_data)
         return
 
+    def _deactivate_and_insert(self) -> None:
+        payload_token: dict[str, Any] = Authentication.payload_token
+        self._deactivate_current_user_tokens(payload_token)
+        self._insert_user_token(payload_token)
+        return
+
     def _prepare_data(self) -> dict:
         data = {
             "user_id": self.user_verified,
-            "user_device": self.user.device_id,
-            "not_before": self.user.not_before,
+            "user_device": self.user_schema.device_id,
+            "not_before": self.user_schema.not_before,
         }
         return data
 
@@ -157,9 +151,7 @@ class TokenCommon(BaseCommon):
         access_token: str = Authentication.create_access_token(
             data=payload_data, current_time=self.current_time, ttl=self.ttl
         )
-        payload_token: dict[str, Any] = Authentication.payload_token
-        self._deactivate_current_user_tokens(payload_token)
-        self._insert_user_token(payload_token)
+        self._deactivate_and_insert()
         return access_token
 
     def get_refresh_token(self) -> str:
@@ -167,9 +159,7 @@ class TokenCommon(BaseCommon):
         refresh_token: str = Authentication.create_refresh_token(
             data=payload_data, current_time=self.current_time, ttl=self.ttl
         )
-        payload_token: dict[str, Any] = Authentication.payload_token
-        self._deactivate_current_user_tokens(payload_token)
-        self._insert_user_token(payload_token)
+        self._deactivate_and_insert()
         return refresh_token
 
     def get_tokens(self) -> tuple[str, str]:
@@ -189,18 +179,18 @@ class UserCommonBase:
         with session as ses:
             resp = ses.execute(query_)
             result = resp.scalars().all()
-            users = [FullUser.model_validate(row, from_attributes=True) for row in result]
+            users = [FullUserSchema.model_validate(row, from_attributes=True) for row in result]
         return users
 
     def show_full_user(self, user_id: UUID):
         resp = self.session.execute(select(User).where(User.id == user_id))
         result = resp.scalars().all()
-        user = FullUser.model_validate(result[0])
+        user = FullUserSchema.model_validate(result[0])
         return user
 
     def get_user_by_id(self, user_id: UUID):
         resp = self.session.execute(select(User).where(User.id == user_id))
         result = resp.first()
-        user = UserId.model_validate(result[0], from_attributes=True)
+        user = UserIdSchema.model_validate(result[0], from_attributes=True)
         return user
 

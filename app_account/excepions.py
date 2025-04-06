@@ -44,7 +44,7 @@ class AuthExceptions(AccountBaseException):
     @classmethod
     def exc_authorization_header_not_exist(cls, authorization_header: str | None):
         """
-        Поднимает исключение, если отсутствует заголовок authorization.\n
+        Поднимает исключение, если отсутствует заголовок.\n
         raise HTTPException, status.HTTP_401_UNAUTHORIZED
         Args:
             authorization_header: Authorization in headers

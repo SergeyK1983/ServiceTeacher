@@ -1,6 +1,6 @@
 import jwt
-from uuid import UUID, uuid4
-from typing import Optional, Any
+from uuid import uuid4, UUID
+from typing import Any
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 from copy import deepcopy
@@ -8,13 +8,12 @@ from copy import deepcopy
 from fastapi.encoders import jsonable_encoder
 from fastapi.security import APIKeyHeader
 from passlib.context import CryptContext
-from sqlalchemy import select
 from fastapi import Request, Depends
 
+from app_account.crud import UserCRUD
 from app_account.excepions import AuthExceptions
 from app_account.models import User
 from core.config import settings
-from core.database import SessionLocal
 
 
 class TypeToken(Enum):
@@ -66,9 +65,9 @@ class Authentication:
         Создание JWT токена. По умолчанию создается access токен. По умолчанию время жизни токена указано в
         переменных окружения.
         Args:
-            data: Payload
+            data: data for Payload
             current_time: Current time
-            type_t: Access or Refresh token
+            type_t: Access or Refresh of token type
             ttl: timedelta - время жизни токена
         Returns:
             str: jwt token
@@ -109,7 +108,7 @@ class Authentication:
         return cls._create_token(data=data, current_time=current_time, ttl=ttl, type_t=TypeToken.REFRESH.name)
 
     @staticmethod
-    def __get_payload(token: str) -> dict | None:
+    def __get_payload(token: str) -> dict:
         payload = dict()
         try:
             payload: dict = jwt.decode(jwt=token, key=settings.SECRET_KEY, algorithms=settings.ALGORITHM)
@@ -127,7 +126,7 @@ class Authentication:
         Returns:
             dict: payload
         """
-        payload: dict | None = Authentication.__get_payload(token)
+        payload: dict = Authentication.__get_payload(token)
         if payload.get("type") != TypeToken.ACCESS.name:
             AuthExceptions.exc_invalid_token_type()
 
@@ -143,45 +142,14 @@ class Authentication:
         Returns:
             dict: payload
         """
-        payload: dict | None = Authentication.__get_payload(token)
+        payload: dict = Authentication.__get_payload(token)
         if payload.get("type") != TypeToken.REFRESH.name:
             AuthExceptions.exc_invalid_token_type()
 
         return payload
 
 
-class BaseAuthenticate:
-
-    @staticmethod
-    def _session_to_receive_user(query_) -> Optional[User]:
-        """
-        Возвращает экземпляр пользователя либо None.
-        Args:
-            query_: select from sqlalchemy
-        Returns:
-            instance User model
-        """
-        session = SessionLocal()
-        with session as ses:
-            resp = ses.execute(query_)
-            instance: Optional[User] = resp.scalar_one_or_none()
-
-        return instance
-
-    def _get_user_by_id_or_none(self, user_id: UUID) -> Optional[User]:
-        """
-        Возвращает экземпляр пользователя по его id либо None.
-        Args:
-            user_id: id of the user
-        Returns:
-            User or None
-        """
-        query_ = select(User).where(User.id == user_id)
-        user: User = self._session_to_receive_user(query_)
-        return user
-
-
-class IsAuthenticate(BaseAuthenticate):
+class IsAuthenticate:
     def __init__(self, request: Request, authorization_header: str, refresh: bool = False):
         self.request = request
         self.request.state.user = None
@@ -193,25 +161,29 @@ class IsAuthenticate(BaseAuthenticate):
         AuthExceptions.exc_jwt_not_exist(self.authorization_header)
         return
 
-    def _authenticate(self) -> User:
-        clear_token = self.authorization_header.replace('JWT ', '')
+    def _authenticate(self) -> None:
+        """
+        Устанавливает пользователя в Request.state или вызывает ошибку: HTTP_403_FORBIDDEN
+        Returns:
+            None
+        """
+        clear_token: str = self.authorization_header.replace("JWT ", "")
         payload: dict = Authentication.verify_access_token(clear_token) if not self.refresh else \
             Authentication.verify_refresh_token(clear_token)
 
-        user: User | None = self._get_user_by_id_or_none(user_id=payload["sub"])
+        jti = UUID(payload["jti"])
+        user: User | None = UserCRUD.get_user_by_jti_token(uuid_jti=jti, refresh=self.refresh)
         AuthExceptions.exc_user_not_exist(user)
         self.request.state.user = user
-        return user
+        return None
 
     def is_authenticate(self) -> bool:
+        """
+        Вернет True или вызовет HTTP ошибку.
+        """
         self._check_headers()
         self._authenticate()
         return True
-
-    def get_refresh(self) -> User:
-        self._check_headers()
-        user = self._authenticate()
-        return user
 
 
 def is_authenticate(request: Request, header: str = Depends(TypeToken.ACCESS.value)) -> bool:
@@ -226,10 +198,9 @@ def is_authenticate(request: Request, header: str = Depends(TypeToken.ACCESS.val
     return IsAuthenticate(request, header).is_authenticate()
 
 
-def refresh_tokens(request: Request, header: str = Depends(TypeToken.REFRESH.value)) -> User:
+def refresh_tokens(request: Request, header: str = Depends(TypeToken.REFRESH.value)) -> bool:
     """
     Предназначено для обновления токенов. В заголовке использовать имя 'Refresh_token'. Соответственно должен быть
     получен refresh токен.
     """
-    user: User = IsAuthenticate(request, header, refresh=True).get_refresh()
-    return user
+    return IsAuthenticate(request, header, refresh=True).is_authenticate()
